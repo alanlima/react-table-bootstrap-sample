@@ -12,7 +12,10 @@ import {
 import matchSorter from 'match-sorter'
 import makeData from './makeData'
 import {
-  DefaultColumnFilter
+  DefaultColumnFilter,
+  SelectColumnFilter,
+  SliderColumnFilter,
+  NumberRangeColumnFilter
 } from './column-filters'
 
 const fuzzyTextFilterFn = (rows, id, filterValue) => {
@@ -42,7 +45,7 @@ function Table({ columns, data }) {
 
   const defaultColumn = React.useMemo(
     () => ({
-      filter: DefaultColumnFilter
+      Filter: DefaultColumnFilter
     }),
     []
   )
@@ -63,7 +66,7 @@ function Table({ columns, data }) {
     useFilters,
     useSortBy
   );
-
+    console.log('headergrouo', {columns, headerGroups});
   return (
     <table className="table" {...getTableProps} >
       <thead className="thead-dark">
@@ -117,18 +120,26 @@ function App() {
       {
         Header: 'Age',
         accessor: 'age',
+        Filter: SliderColumnFilter,
+        filter: 'equals'
       },
       {
         Header: 'Visits',
         accessor: 'visits',
+        Filter: NumberRangeColumnFilter,
+        filter: 'between'
       },
       {
         Header: 'Status',
         accessor: 'status',
+        Filter: SelectColumnFilter,
+        filter: 'includes'
       },
       {
         Header: 'Profile Progress',
         accessor: 'progress',
+        Filter: SliderColumnFilter,
+        filter: 'equals'
       }
     ],
     []
