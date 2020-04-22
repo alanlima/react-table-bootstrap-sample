@@ -1,25 +1,10 @@
-import React, { useMemo } from 'react'
+import React from 'react';
 
-export function RecordCountCell({
-    rows,
-    recordsCountLabel = 'record(s)'
+export function ColumnSummaryCell({
+    column: { columnSummary, columnSummaryValue }
 }) {
-    return (<>{`${rows.length} ${recordsCountLabel}`}</>)
-}
-
-export function AggregateSumCell({
-    rows,
-    column: { id }
-}) {
-    const sumCount = useMemo(() => {
-        let sumCount = rows.reduce((sum, next) => {
-            const current = next.values[id];
-            return sum + (typeof current === 'number' ? current : 0);
-        }, 0);
-        return sumCount;
-    }, [rows, id]);
-
-    return <>{sumCount}</>
+    if(!columnSummary) return null;
+    return <>{columnSummaryValue}</>
 }
 
 export function LogPropsCell(props, other) {

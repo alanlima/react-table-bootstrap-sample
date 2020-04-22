@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react'
+import React, { useState, useRef } from 'react'
 import {
   useTable,
   usePagination,
@@ -17,8 +17,9 @@ import {
   NumberRangeColumnFilter
 } from './components/column-filters';
 import {
-  RecordCountCell, LogPropsCell, AggregateSumCell
+  ColumnSummaryCell
 } from './components/custom-cells'
+import useColumnSummary from './custom-hooks/useColumnSummary'
 
 const fuzzyTextFilterFn = (rows, id, filterValue) => {
   return matchSorter(rows, filterValue, { keys: [row => row.values[id]] })
@@ -94,10 +95,9 @@ function Table({ columns, data, updateData, skipReset }) {
     useFilters,
     useGroupBy,
     useSortBy,
-    usePagination
+    usePagination,
+    useColumnSummary
   );
-
-  console.log('footerGroup', { footerGroups })
 
   return (
     <>
@@ -208,6 +208,11 @@ function Table({ columns, data, updateData, skipReset }) {
     </>
   )
 }
+
+function visitorsSummaryFn(values) {
+  return new Set(values).size;
+}
+
 function App() {
   const columns = React.useMemo(
     () => [
@@ -215,13 +220,11 @@ function App() {
         Header: 'First Name',
         accessor: 'firstName',
         filter: 'fuzzyText',
-        Footer: RecordCountCell,
-        footerProps: {
-        
-        },
-        footerCellProps: {
-          recordsCountLabel: "record(s) ⭐️"
-        }
+        Footer: ColumnSummaryCell,
+        columnSummary: [
+          'count',
+          count => `${count} record(s) ⭐️`
+        ]
       },
       {
         Header: 'Last Name',
@@ -231,20 +234,25 @@ function App() {
         Header: 'Age',
         accessor: 'age',
         Filter: SliderColumnFilter,
-        filter: 'equals'
+        filter: 'equals',
+        columnSummary: 'median',
+        Footer: ColumnSummaryCell
       },
       {
         Header: 'Visits',
         accessor: 'visits',
         Filter: NumberRangeColumnFilter,
         filter: 'between',
-        Footer: AggregateSumCell
+        columnSummary: 'minMax',
+        Footer: ColumnSummaryCell
       },
       {
         Header: 'Status',
         accessor: 'status',
         Filter: SelectColumnFilter,
-        filter: 'includes'
+        filter: 'includes',
+        columnSummary: visitorsSummaryFn,
+        Footer: ColumnSummaryCell
       },
       {
         Header: 'Profile Progress',
