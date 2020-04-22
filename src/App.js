@@ -16,6 +16,9 @@ import {
   SliderColumnFilter,
   NumberRangeColumnFilter
 } from './components/column-filters';
+import {
+  RecordCountCell, LogPropsCell
+} from './components/custom-cells'
 
 const fuzzyTextFilterFn = (rows, id, filterValue) => {
   return matchSorter(rows, filterValue, { keys: [row => row.values[id]] })
@@ -53,6 +56,7 @@ function Table({ columns, data, updateData, skipReset }) {
     getTableProps,
     getTableBodyProps,
     headerGroups,
+    footerGroups,
     prepareRow,
 
     page, // Instead of using 'rows', we'll use page,
@@ -92,6 +96,8 @@ function Table({ columns, data, updateData, skipReset }) {
     usePagination
   );
 
+  console.log('footerGroup', { footerGroups })
+
   return (
     <>
       <div>
@@ -130,41 +136,51 @@ function Table({ columns, data, updateData, skipReset }) {
             })}
           </tbody>
           <tfoot>
-            <nav aria-label="page navigation">
-              <ul className="pagination">
-                <li className="page-item">
-                  <button
-                    className="page-link"
-                    onClick={() => previousPage()}
-                    disabled={!canPreviousPage}>
-                    Previous
-              </button>
-                </li>
-
-                {pageOptions.map(pageNumber => (
-                  <li key={pageNumber} className={`page-item ${pageNumber === pageIndex && 'active'}`}>
-                    <button
-                      className="page-link"
-                      page-number={pageNumber}
-                      onClick={() => gotoPage(pageNumber)}>
-                      {pageNumber + 1}
-                    </button>
-                  </li>
+            {footerGroups.map(group => (
+              <tr {...group.getFooterGroupProps()}>
+                {group.headers.map(column => (
+                  <td {...column.getFooterProps(column.footerProps)}>
+                    {column.render('Footer', column.footerCellProps)}
+                  </td>
                 ))}
-
-                <li className="page-item">
-                  <button
-                    className="page-link"
-                    onClick={() => nextPage()}
-                    disabled={!canNextPage}>
-                    Next
-              </button>
-                </li>
-              </ul>
-            </nav>
+              </tr>
+            ))}
           </tfoot>
         </table>
+        <div>
+          <nav aria-label="page navigation">
+            <ul className="pagination">
+              <li className="page-item">
+                <button
+                  className="page-link"
+                  onClick={() => previousPage()}
+                  disabled={!canPreviousPage}>
+                  Previous
+              </button>
+              </li>
 
+              {pageOptions.map(pageNumber => (
+                <li key={pageNumber} className={`page-item ${pageNumber === pageIndex && 'active'}`}>
+                  <button
+                    className="page-link"
+                    page-number={pageNumber}
+                    onClick={() => gotoPage(pageNumber)}>
+                    {pageNumber + 1}
+                  </button>
+                </li>
+              ))}
+
+              <li className="page-item">
+                <button
+                  className="page-link"
+                  onClick={() => nextPage()}
+                  disabled={!canNextPage}>
+                  Next
+              </button>
+              </li>
+            </ul>
+          </nav>
+        </div>
 
       </div>
       <pre>
@@ -197,11 +213,19 @@ function App() {
       {
         Header: 'First Name',
         accessor: 'firstName',
-        filter: 'fuzzyText'
+        filter: 'fuzzyText',
+        Footer: RecordCountCell,
+        footerProps: {
+          colSpan: 2
+        },
+        footerCellProps: {
+          recordsCountLabel: "record(s) ⭐️"
+        }
       },
       {
         Header: 'Last Name',
         accessor: 'lastName',
+        Footer: LogPropsCell
       },
       {
         Header: 'Age',
