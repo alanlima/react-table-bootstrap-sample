@@ -17,7 +17,7 @@ import {
   NumberRangeColumnFilter
 } from './components/column-filters';
 import {
-  RecordCountCell, LogPropsCell
+  RecordCountCell, LogPropsCell, AggregateSumCell
 } from './components/custom-cells'
 
 const fuzzyTextFilterFn = (rows, id, filterValue) => {
@@ -92,6 +92,7 @@ function Table({ columns, data, updateData, skipReset }) {
       autoResetSelectedRows: !skipReset
     },
     useFilters,
+    useGroupBy,
     useSortBy,
     usePagination
   );
@@ -140,7 +141,7 @@ function Table({ columns, data, updateData, skipReset }) {
               <tr {...group.getFooterGroupProps()}>
                 {group.headers.map(column => (
                   <td {...column.getFooterProps(column.footerProps)}>
-                    {column.render('Footer', column.footerCellProps)}
+                    { column.render('Footer', column.footerCellProps) }
                   </td>
                 ))}
               </tr>
@@ -216,7 +217,7 @@ function App() {
         filter: 'fuzzyText',
         Footer: RecordCountCell,
         footerProps: {
-          colSpan: 2
+        
         },
         footerCellProps: {
           recordsCountLabel: "record(s) ⭐️"
@@ -224,8 +225,7 @@ function App() {
       },
       {
         Header: 'Last Name',
-        accessor: 'lastName',
-        Footer: LogPropsCell
+        accessor: 'lastName'
       },
       {
         Header: 'Age',
@@ -237,7 +237,8 @@ function App() {
         Header: 'Visits',
         accessor: 'visits',
         Filter: NumberRangeColumnFilter,
-        filter: 'between'
+        filter: 'between',
+        Footer: AggregateSumCell
       },
       {
         Header: 'Status',
