@@ -1,5 +1,4 @@
-import React from 'react'
-import styled from 'styled-components'
+import React, { useState, useRef, useMemo } from 'react'
 import {
   useTable,
   usePagination,
@@ -16,13 +15,13 @@ import {
   SelectColumnFilter,
   SliderColumnFilter,
   NumberRangeColumnFilter
-} from './column-filters'
+} from './components/column-filters';
 
 const fuzzyTextFilterFn = (rows, id, filterValue) => {
   return matchSorter(rows, filterValue, { keys: [row => row.values[id]] })
 }
 
-function Table({ columns, data }) {
+function Table({ columns, data, updateData, skipReset }) {
   const filterTypes = React.useMemo(
     () => ({
       // Add a new fuzzyTextFilterFn filter type.
@@ -34,8 +33,8 @@ function Table({ columns, data }) {
           const rowValue = row.values[id]
           return rowValue !== undefined
             ? String(rowValue)
-                .toLowerCase()
-                .startsWith(String(filterValue).toLowerCase())
+              .toLowerCase()
+              .startsWith(String(filterValue).toLowerCase())
             : true
         })
       },
@@ -54,55 +53,142 @@ function Table({ columns, data }) {
     getTableProps,
     getTableBodyProps,
     headerGroups,
-    rows,
     prepareRow,
+
+    page, // Instead of using 'rows', we'll use page,
+    // which has only the rows for the active page
+    // The rest of these things are super handy, too ;)
+    canPreviousPage,
+    canNextPage,
+    pageOptions,
+    pageCount,
+    gotoPage,
+    nextPage,
+    previousPage,
+    setPageSize,
+    state: {
+      pageIndex,
+      pageSize,
+      sortBy,
+      groupBy,
+      expanded,
+      filters,
+      selectedRowIds
+    }
   } = useTable(
     {
       columns,
       data,
       defaultColumn,
-      filterTypes
+      filterTypes,
+      updateData,
+      // We also need to pass this as the page doens't change 
+      // when we edit the data.
+      autoResetPage: !skipReset,
+      autoResetSelectedRows: !skipReset
     },
     useFilters,
-    useSortBy
+    useSortBy,
+    usePagination
   );
-    console.log('headergrouo', {columns, headerGroups});
+
   return (
-    <table className="table" {...getTableProps} >
-      <thead className="thead-dark">
-        {headerGroups.map(headerGroup => (
-          <tr {...headerGroup.getHeaderGroupProps()}>
-            {headerGroup.headers.map(column => (
-              <th {...column.getHeaderProps()}>
-                <div>
-                  <span {...column.getSortByToggleProps()}>
-                    {column.render('Header')}
-                    {column.isSorted
-                        ? column.isSortedDesc
-                          ? ' 🔽'
-                          : ' 🔼'
-                        : ''}
-                  </span>
-                </div>
-                <div>{column.canFilter ? column.render('Filter') : null}</div>
-              </th>
+    <>
+      <div>
+        <table className="table table-striped table-borderless table-hover table-dark" {...getTableProps} >
+          <thead>
+            {headerGroups.map(headerGroup => (
+              <tr {...headerGroup.getHeaderGroupProps()}>
+                {headerGroup.headers.map(column => (
+                  <th {...column.getHeaderProps()}>
+                    <div>
+                      <span {...column.getSortByToggleProps()}>
+                        {column.render('Header')}
+                        {column.isSorted
+                          ? column.isSortedDesc
+                            ? ' 🔽'
+                            : ' 🔼'
+                          : ''}
+                      </span>
+                    </div>
+                    <div>{column.canFilter ? column.render('Filter') : null}</div>
+                  </th>
+                ))}
+              </tr>
             ))}
-          </tr>
-        ))}
-      </thead>
-      <tbody {...getTableBodyProps()}>
-        {rows.map((row, i) => {
-          prepareRow(row);
-          return (
-            <tr {...row.getRowProps()}>
-              {row.cells.map(cell => (
-                <td {...cell.getCellProps()}>{cell.render('Cell')}</td>
-              ))}
-            </tr>
-          )
-        })}
-      </tbody>
-    </table>
+          </thead>
+          <tbody {...getTableBodyProps()}>
+            {page.map((row, i) => {
+              prepareRow(row);
+              return (
+                <tr {...row.getRowProps()}>
+                  {row.cells.map(cell => (
+                    <td {...cell.getCellProps()}>{cell.render('Cell')}</td>
+                  ))}
+                </tr>
+              )
+            })}
+          </tbody>
+          <tfoot>
+            <nav aria-label="page navigation">
+              <ul className="pagination">
+                <li className="page-item">
+                  <button
+                    className="page-link"
+                    onClick={() => previousPage()}
+                    disabled={!canPreviousPage}>
+                    Previous
+              </button>
+                </li>
+
+                {pageOptions.map(pageNumber => (
+                  <li key={pageNumber} className={`page-item ${pageNumber === pageIndex && 'active'}`}>
+                    <button
+                      className="page-link"
+                      page-number={pageNumber}
+                      onClick={() => gotoPage(pageNumber)}>
+                      {pageNumber + 1}
+                    </button>
+                  </li>
+                ))}
+
+                <li className="page-item">
+                  <button
+                    className="page-link"
+                    onClick={() => nextPage()}
+                    disabled={!canNextPage}>
+                    Next
+              </button>
+                </li>
+              </ul>
+            </nav>
+          </tfoot>
+        </table>
+
+
+      </div>
+      <pre>
+        <code>
+          {JSON.stringify(
+            {
+              pageIndex,
+              pageSize,
+              pageCount,
+              pageOptions,
+              canNextPage,
+              canPreviousPage,
+              sortBy,
+              groupBy,
+              expanded: expanded,
+              filters,
+              selectedRowIds: selectedRowIds
+            },
+            null,
+            2
+          )}
+        </code>
+      </pre>
+    </>
   )
 }
 function App() {
@@ -145,13 +231,38 @@ function App() {
     []
   );
 
-  const data = React.useMemo(() => makeData(20), []);
+  const [data, setData] = useState(() => makeData(50));
+  const [originalData] = useState(data);
 
-  console.log(data);
+  // We need to keep the table from resetting the pageIndex when we
+  // update Data. So we can keep track of that flag with a ref.
+  const skipResetRef = useRef(false);
+
+  // When our cell renderer calls updateMyData, we'll use
+  // the rowIndex, columnId and new value to update the
+  // original data
+  const updateMyData = (rowIndex, columnId, value) => {
+    // We also turn on the flag to not reset the page
+    skipResetRef.current = true;
+    setData(old =>
+      old.map((row, index) => {
+        if (index !== rowIndex) {
+          return row;
+        }
+        return {
+          ...row,
+          [columnId]: value
+        }
+      }))
+  }
 
   return (
     <div className="container">
-      <Table columns={columns} data={data} />
+      <Table
+        columns={columns}
+        data={data}
+        updateData={updateMyData}
+        skipReset={skipResetRef.current} />
     </div>
   )
 }
